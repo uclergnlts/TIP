@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Upload, FileSpreadsheet, CheckCircle, AlertCircle, X, Calendar, Database } from 'lucide-react';
+import { Upload, FileSpreadsheet, CheckCircle, AlertCircle, X, Calendar, Database, Trash2 } from 'lucide-react';
 
 interface LoadedMonth {
     ay: string;
@@ -115,18 +115,56 @@ export default function UploadPage() {
         }
     };
 
-    // Generate month options for the last 24 months
+    const handleDelete = async (monthToDelete: string) => {
+        if (!confirm(`${formatMonth(monthToDelete)} dönemine ait verileri silmek istediğinize emin misiniz? Bu işlem geri alınamaz.`)) {
+            return;
+        }
+
+        try {
+            const res = await fetch(`/api/upload/${monthToDelete}`, {
+                method: 'DELETE',
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                setResult({ success: true, message: data.message });
+                fetchLoadedMonths(); // Refresh list
+                if (month === monthToDelete) {
+                    setMonth(''); // Reset selection if deleted current selection
+                }
+            } else {
+                alert(data.error || 'Silme işlemi başarısız oldu');
+            }
+        } catch (error) {
+            console.error('Delete error:', error);
+            alert('Silme sırasında bir hata oluştu');
+        }
+    };
+
+    // Generate month options for 2025-2027
     const monthOptions = [];
-    const now = new Date();
     const loadedMonthSet = new Set(loadedMonths.map(m => m.ay));
 
-    for (let i = 0; i < 24; i++) {
-        const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-        const label = date.toLocaleDateString('tr-TR', { year: 'numeric', month: 'long' });
-        const isLoaded = loadedMonthSet.has(value);
-        monthOptions.push({ value, label, isLoaded });
+    // Start from Jan 2025 to Dec 2027
+    const startYear = 2025;
+    const endYear = 2027;
+
+    for (let year = startYear; year <= endYear; year++) {
+        for (let month = 1; month <= 12; month++) {
+            const value = `${year}-${String(month).padStart(2, '0')}`;
+            // Tarih gelecekte mi kontrolü (opsiyonel, şimdilik hepsini gösterelim)
+            const label = new Date(year, month - 1).toLocaleDateString('tr-TR', { year: 'numeric', month: 'long' });
+            const isLoaded = loadedMonthSet.has(value);
+            monthOptions.push({ value, label, isLoaded });
+        }
     }
+    // Reverse to show newest first if desired, or keep chronological.
+    // User asked "start from 2025", usually newest is better at top but let's keep chronological or reverse chronological.
+    // Let's sort descending (newest first) for easier access? Or ascending.
+    // The previous code was "last 24 months" which implies reverse chrono.
+    // Let's stick to reverse chronological (2027 -> 2025) which is usually better for data entry.
+    monthOptions.reverse();
 
     return (
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -278,13 +316,22 @@ export default function UploadPage() {
                         ) : (
                             <div className="divide-y divide-white/5 max-h-[400px] overflow-y-auto">
                                 {loadedMonths.map(m => (
-                                    <div key={m.ay} className="p-4 hover:bg-white/5 transition-colors">
+                                    <div key={m.ay} className="p-4 hover:bg-white/5 transition-colors group">
                                         <div className="flex items-center justify-between mb-2">
                                             <span className="font-medium text-white">{formatMonth(m.ay)}</span>
-                                            <span className={`text-sm font-bold ${parseFloat(m.basari_orani) >= 75 ? 'text-emerald-400' : 'text-rose-400'
-                                                }`}>
-                                                %{m.basari_orani}
-                                            </span>
+                                            <div className="flex items-center gap-3">
+                                                <span className={`text-sm font-bold ${parseFloat(m.basari_orani) >= 75 ? 'text-emerald-400' : 'text-rose-400'
+                                                    }`}>
+                                                    %{m.basari_orani}
+                                                </span>
+                                                <button
+                                                    onClick={() => handleDelete(m.ay)}
+                                                    className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                                                    title="Verileri Sil"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </button>
+                                            </div>
                                         </div>
                                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
                                             <div className="text-center p-2 rounded bg-slate-800/50">
@@ -321,6 +368,6 @@ export default function UploadPage() {
                     </div>
                 </div>
             </div>
-        </div>
+        </div >
     );
 }
