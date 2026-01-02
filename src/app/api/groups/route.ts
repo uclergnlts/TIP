@@ -39,7 +39,21 @@ export async function GET(request: NextRequest) {
         const availableMonths = availableMonthsResult.rows as unknown as { ay: string }[];
 
         // Bu aydaki tüm kayıtları al
-        const recordsResult = await db.execute('SELECT * FROM monthly_stats WHERE ay = ?', [targetMonth]);
+        const columns = `
+            sicil, ay, 
+            kontrol_edilen_bagaj as bagaj_sayisi,
+            atilan_tip_sayisi as test_sayisi,
+            yakalanan_tip as yesil,
+            yanlis_alarm as sari,
+            kacirilan_tip as kirmizi,
+            basari_orani,
+            CASE 
+                WHEN kontrol_edilen_bagaj > 0 THEN (CAST(yanlis_alarm AS REAL) / kontrol_edilen_bagaj) * 100 
+                ELSE 0 
+            END as sari_orani
+        `;
+
+        const recordsResult = await db.execute(`SELECT ${columns} FROM monthly_stats WHERE ay = ?`, [targetMonth]);
         const records = recordsResult.rows as unknown as MonthlyRecord[];
 
         // Tüm personeli al
@@ -129,7 +143,7 @@ export async function GET(request: NextRequest) {
             ? `${parseInt(year) - 1}-12`
             : `${year}-${(parseInt(mon) - 1).toString().padStart(2, '0')}`;
 
-        const prevRecordsResult = await db.execute('SELECT * FROM monthly_stats WHERE ay = ?', [prevMonth]);
+        const prevRecordsResult = await db.execute(`SELECT ${columns} FROM monthly_stats WHERE ay = ?`, [prevMonth]);
         const prevRecords = prevRecordsResult.rows as unknown as MonthlyRecord[];
 
         // Önceki ay grup istatistikleri

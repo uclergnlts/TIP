@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getIronSession } from 'iron-session';
 import { cookies } from 'next/headers';
-import { getDb } from '@/lib/db';
+import { db } from '@/lib/db';
 import { sessionOptions, SessionData } from '@/lib/session';
 import type { Personnel } from '@/types';
 
@@ -18,12 +18,9 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const db = getDb();
-
         // Personeli bul
-        const personnel = db.prepare(`
-      SELECT * FROM personnel WHERE sicil = ?
-    `).get(parseInt(sicil)) as Personnel | undefined;
+        const result = await db.execute('SELECT * FROM personnel WHERE sicil = ?', [parseInt(sicil)]);
+        const personnel = result.rows[0] as unknown as Personnel | undefined;
 
         if (!personnel) {
             return NextResponse.json(

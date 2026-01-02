@@ -24,8 +24,24 @@ export async function GET(request: NextRequest) {
             }
 
             // Tüm aylık kayıtları al
+            // Tüm aylık kayıtları al
+            const columns = `
+                id, sicil, ay,
+                kontrol_edilen_bagaj as bagaj_sayisi,
+                atilan_tip_sayisi as test_sayisi,
+                yakalanan_tip as yesil,
+                yanlis_alarm as sari,
+                kacirilan_tip as kirmizi,
+                basari_orani,
+                CASE 
+                    WHEN kontrol_edilen_bagaj > 0 THEN (CAST(yanlis_alarm AS REAL) / kontrol_edilen_bagaj) * 100 
+                    ELSE 0 
+                END as sari_orani,
+                created_at
+            `;
+
             const recordsResult = await db.execute(`
-                SELECT * FROM monthly_stats 
+                SELECT ${columns} FROM monthly_stats 
                 WHERE sicil = ? 
                 ORDER BY ay DESC
             `, [parseInt(sicil)]);
@@ -36,7 +52,7 @@ export async function GET(request: NextRequest) {
             let allRecordsInMonth: MonthlyRecord[] = [];
 
             if (currentMonth) {
-                const allRecordsResult = await db.execute('SELECT * FROM monthly_stats WHERE ay = ?', [currentMonth]);
+                const allRecordsResult = await db.execute(`SELECT ${columns} FROM monthly_stats WHERE ay = ?`, [currentMonth]);
                 allRecordsInMonth = allRecordsResult.rows as unknown as MonthlyRecord[];
             }
 

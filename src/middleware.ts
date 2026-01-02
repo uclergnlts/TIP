@@ -5,7 +5,7 @@ import { sessionOptions, SessionData, ROLE_PERMISSIONS } from '@/lib/session';
 
 // Korunan rotalar ve gerekli yetkiler
 const PROTECTED_ROUTES = {
-    '/': { requiresAdmin: true, permission: 'canViewDashboard' },
+    '/dashboard': { requiresAdmin: true, permission: 'canViewDashboard' },
     '/personel': { requiresAdmin: true, permission: 'canViewPersonnel' },
     '/upload': { requiresAdmin: true, permission: 'canUploadData' },
 };
@@ -60,7 +60,7 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
     matcher: [
-        '/',
+        '/dashboard/:path*',
         '/personel/:path*',
         '/upload/:path*',
         '/benim/:path*',

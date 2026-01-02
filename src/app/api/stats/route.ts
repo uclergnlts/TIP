@@ -27,11 +27,25 @@ export async function GET(request: NextRequest) {
         const previousMonth = availableMonths[availableMonths.indexOf(currentMonth) + 1] || null;
 
         // Kayıtları al
-        const currentRecordsResult = await db.execute('SELECT * FROM monthly_stats WHERE ay = ?', [currentMonth]);
+        const columns = `
+            sicil, ay, 
+            kontrol_edilen_bagaj as bagaj_sayisi,
+            atilan_tip_sayisi as test_sayisi,
+            yakalanan_tip as yesil,
+            yanlis_alarm as sari,
+            kacirilan_tip as kirmizi,
+            basari_orani,
+            CASE 
+                WHEN kontrol_edilen_bagaj > 0 THEN (CAST(yanlis_alarm AS REAL) / kontrol_edilen_bagaj) * 100 
+                ELSE 0 
+            END as sari_orani
+        `;
+
+        const currentRecordsResult = await db.execute(`SELECT ${columns} FROM monthly_stats WHERE ay = ?`, [currentMonth]);
         const currentRecords = currentRecordsResult.rows as unknown as MonthlyRecord[];
 
         const previousRecordsResult = previousMonth
-            ? await db.execute('SELECT * FROM monthly_stats WHERE ay = ?', [previousMonth])
+            ? await db.execute(`SELECT ${columns} FROM monthly_stats WHERE ay = ?`, [previousMonth])
             : { rows: [] };
         const previousRecords = previousRecordsResult.rows as unknown as MonthlyRecord[];
 
@@ -72,7 +86,7 @@ export async function GET(request: NextRequest) {
         // Tüm ayların istatistikleri (trend için) - Parallel fetch for better performance
         const trendMonths = availableMonths.slice(0, 6).reverse();
         const trendPromises = trendMonths.map(async month => {
-            const res = await db.execute('SELECT * FROM monthly_stats WHERE ay = ?', [month]);
+            const res = await db.execute(`SELECT ${columns} FROM monthly_stats WHERE ay = ?`, [month]);
             return calculateMonthlyStats(res.rows as unknown as MonthlyRecord[], month);
         });
         const monthlyTrend = await Promise.all(trendPromises);

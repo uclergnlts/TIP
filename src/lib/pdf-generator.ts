@@ -1,8 +1,8 @@
 import PDFDocument from 'pdfkit';
-import { getDb } from './db';
+import { db } from './db';
 import { calculatePersonnelKPI, calculateMonthlyStats } from './kpi-calculator';
 import { generatePersonnelComments, generateSummaryComment } from './comment-engine';
-import type { Personnel, MonthlyRecord } from '@/types';
+import type { Personnel, MonthlyRecord, MonthlyStats, PersonnelKPI, Comment } from '@/types';
 
 // Türkçe ay isimleri
 const monthNames: Record<string, string> = {
@@ -27,32 +27,34 @@ function formatDate(): string {
 
 // Personel TIP Raporu PDF oluştur
 export async function generatePersonnelReportPDF(sicil: number, month?: string): Promise<Buffer> {
-    const db = getDb();
-
+    // 1. Verileri Asenkron Çek
     // Personel bilgisi
-    const personnel = db.prepare('SELECT * FROM personnel WHERE sicil = ?').get(sicil) as Personnel;
+    const personnelResult = await db.execute('SELECT * FROM personnel WHERE sicil = ?', [sicil]);
+    const personnel = personnelResult.rows[0] as unknown as Personnel;
     if (!personnel) throw new Error('Personel bulunamadı');
 
-    // Aylık kayıtlar
-    const records = db.prepare(`
-    SELECT * FROM monthly_records WHERE sicil = ? ORDER BY ay DESC LIMIT 6
-  `).all(sicil) as MonthlyRecord[];
+    // Aylık kayıtlar (Son 6 ay)
+    const recordsResult = await db.execute(
+        'SELECT * FROM monthly_stats WHERE sicil = ? ORDER BY ay DESC LIMIT 6',
+        [sicil]
+    );
+    const records = recordsResult.rows as unknown as MonthlyRecord[];
 
     if (records.length === 0) throw new Error('Kayıt bulunamadı');
 
     const currentRecord = month
         ? records.find(r => r.ay === month) || records[0]
         : records[0];
-    const previousRecord = records[1];
+    const previousRecord = records.find(r => r.ay < currentRecord.ay) || records[1]; // Basit bir önceki ay bulma mantığı
 
-    // KPI ve yorumlar
-    const allRecordsInMonth = db.prepare('SELECT * FROM monthly_records WHERE ay = ?')
-        .all(currentRecord.ay) as MonthlyRecord[];
+    // Seçili ayın diğer kayıtları (KPI hesaplaması için gerekli - örn: percentile)
+    const allRecordsResult = await db.execute('SELECT * FROM monthly_stats WHERE ay = ?', [currentRecord.ay]);
+    const allRecordsInMonth = allRecordsResult.rows as unknown as MonthlyRecord[];
 
     const kpi = calculatePersonnelKPI(currentRecord, previousRecord, allRecordsInMonth);
     const comments = generatePersonnelComments(kpi, currentRecord, previousRecord);
 
-    // PDF oluştur
+    // 2. PDF Oluştur (Senkron akış)
     return new Promise((resolve, reject) => {
         const chunks: Buffer[] = [];
         const doc = new PDFDocument({
@@ -117,7 +119,7 @@ export async function generatePersonnelReportPDF(sicil: number, month?: string):
             ['Yakalanan (Yeşil)', currentRecord.yesil.toString(), 'Başarılı'],
             ['Yanlış Alarm (Sarı)', currentRecord.sari.toString(), currentRecord.sari > 10 ? 'Dikkat' : 'Normal'],
             ['Kaçırılan (Kırmızı)', currentRecord.kirmizi.toString(), currentRecord.kirmizi > 0 ? 'Kritik' : 'Mükemmel'],
-            ['Başarı Oranı', `%${kpi.basariOrani.toFixed(2)}`, kpi.basariOrani >= 98 ? 'Mükemmel' : kpi.basariOrani >= 95 ? 'İyi' : 'Geliştirilmeli'],
+            ['Başarı Oranı', `%${kpi.basariOrani.toFixed(2)}`, kpi.basariOrani >= 98 ? 'Mükemmel' : kpi.basariOrani >= 75 ? 'İyi' : 'Geliştirilmeli'],
             ['Kırmızı Oranı', `%${kpi.kirmiziOrani.toFixed(2)}`, ''],
             ['Sarı Oranı', `%${kpi.sariOrani.toFixed(2)}`, '']
         ];
@@ -125,9 +127,9 @@ export async function generatePersonnelReportPDF(sicil: number, month?: string):
         let rowY = tableTop + 25;
         doc.font('Helvetica');
         tableData.forEach(([label, value, status]) => {
-            doc.text(label, col1, rowY)
-                .text(value, col2, rowY)
-                .text(status, col3, rowY);
+            doc.text(label.toString(), col1, rowY)
+                .text(value.toString(), col2, rowY)
+                .text(status.toString(), col3, rowY);
             rowY += 18;
         });
 
@@ -211,10 +213,10 @@ export async function generatePersonnelReportPDF(sicil: number, month?: string):
 
 // Aylık Genel Değerlendirme Raporu
 export async function generateMonthlyReportPDF(month: string): Promise<Buffer> {
-    const db = getDb();
-
-    // Bu ayın kayıtları
-    const records = db.prepare('SELECT * FROM monthly_records WHERE ay = ?').all(month) as MonthlyRecord[];
+    // 1. Verileri Asenkron Çek
+    // Bu ayın kayıtları (monthly_records -> monthly_stats)
+    const recordsResult = await db.execute('SELECT * FROM monthly_stats WHERE ay = ?', [month]);
+    const records = recordsResult.rows as unknown as MonthlyRecord[];
     if (records.length === 0) throw new Error('Kayıt bulunamadı');
 
     // Önceki ay
@@ -223,7 +225,8 @@ export async function generateMonthlyReportPDF(month: string): Promise<Buffer> {
         ? `${parseInt(year) - 1}-12`
         : `${year}-${(parseInt(mon) - 1).toString().padStart(2, '0')}`;
 
-    const prevRecords = db.prepare('SELECT * FROM monthly_records WHERE ay = ?').all(prevMonth) as MonthlyRecord[];
+    const prevRecordsResult = await db.execute('SELECT * FROM monthly_stats WHERE ay = ?', [prevMonth]);
+    const prevRecords = prevRecordsResult.rows as unknown as MonthlyRecord[];
 
     // İstatistikler
     const currentStats = calculateMonthlyStats(records, month);
@@ -233,9 +236,9 @@ export async function generateMonthlyReportPDF(month: string): Promise<Buffer> {
     const summaryComments = generateSummaryComment(currentStats, prevStats || undefined);
 
     // Personel bilgileri
-    const personnelMap = new Map(
-        (db.prepare('SELECT * FROM personnel').all() as Personnel[]).map(p => [p.sicil, p])
-    );
+    const personnelResult = await db.execute('SELECT * FROM personnel');
+    const personnelList = personnelResult.rows as unknown as Personnel[];
+    const personnelMap = new Map(personnelList.map(p => [p.sicil, p]));
 
     // En iyi ve en kötü performans
     const sortedBySuccess = [...records]
@@ -245,7 +248,7 @@ export async function generateMonthlyReportPDF(month: string): Promise<Buffer> {
     const topPerformers = sortedBySuccess.slice(0, 10);
     const riskPersonnel = sortedBySuccess.slice(-5).reverse();
 
-    // PDF oluştur
+    // 2. PDF Oluştur (Senkron akış)
     return new Promise((resolve, reject) => {
         const chunks: Buffer[] = [];
         const doc = new PDFDocument({
@@ -370,7 +373,7 @@ export async function generateMonthlyReportPDF(month: string): Promise<Buffer> {
             doc.font('Helvetica');
             riskPersonnel.forEach((r, i) => {
                 const p = personnelMap.get(r.sicil);
-                const rate = (r.yesil / r.test_sayisi * 100).toFixed(1);
+                const rate = r.test_sayisi > 0 ? (r.yesil / r.test_sayisi * 100).toFixed(1) : '0';
                 doc.text((i + 1).toString(), 50, riskRowY)
                     .text(r.sicil.toString(), 70, riskRowY)
                     .text(p?.ad_soyad || '-', 120, riskRowY)
