@@ -1,9 +1,26 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 import { Users, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { useAuth } from '@/components/AuthProvider';
 
 export default function LandingPage() {
+  const { isLoggedIn, isAdmin, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && isLoggedIn) {
+      if (isAdmin) {
+        router.push('/dashboard');
+      } else {
+        router.push('/benim');
+      }
+    }
+  }, [isLoggedIn, isAdmin, loading, router]);
+
+  if (loading) return null; // Or a loading spinner
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4">
       {/* Header */}

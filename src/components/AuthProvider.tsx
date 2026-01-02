@@ -98,7 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setUserName(null);
             setSicil(null);
 
-            router.push('/admin');
+            router.push('/');
         } catch (error) {
             console.error('Logout error:', error);
         }

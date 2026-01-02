@@ -78,7 +78,7 @@ export default function MyPerformancePage() {
 
     const handleLogout = async () => {
         await fetch('/api/auth', { method: 'DELETE' });
-        router.push('/giris');
+        router.push('/');
     };
 
     if (loading || !session) {
@@ -190,17 +190,17 @@ export default function MyPerformancePage() {
                         <div
                             key={i}
                             className={`p-4 rounded-xl border ${comment.type === 'achievement' ? 'bg-purple-500/10 border-purple-500/20' :
-                                    comment.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/20' :
-                                        comment.type === 'warning' ? 'bg-amber-500/10 border-amber-500/20' :
-                                            'bg-blue-500/10 border-blue-500/20'
+                                comment.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/20' :
+                                    comment.type === 'warning' ? 'bg-amber-500/10 border-amber-500/20' :
+                                        'bg-blue-500/10 border-blue-500/20'
                                 }`}
                         >
                             <div className="flex items-start gap-3">
                                 <span className="text-xl">{comment.icon}</span>
                                 <p className={`${comment.type === 'achievement' ? 'text-purple-300' :
-                                        comment.type === 'success' ? 'text-emerald-300' :
-                                            comment.type === 'warning' ? 'text-amber-300' :
-                                                'text-blue-300'
+                                    comment.type === 'success' ? 'text-emerald-300' :
+                                        comment.type === 'warning' ? 'text-amber-300' :
+                                            'text-blue-300'
                                     }`}>
                                     {comment.text}
                                 </p>
@@ -306,8 +306,8 @@ export default function MyPerformancePage() {
                                     <td className="px-4 py-4 text-center text-amber-400 font-medium">{record.sari}</td>
                                     <td className="px-4 py-4 text-center">
                                         <span className={`font-bold ${record.basari_orani >= 98 ? 'text-emerald-400' :
-                                                record.basari_orani >= 95 ? 'text-amber-400' :
-                                                    'text-rose-400'
+                                            record.basari_orani >= 95 ? 'text-amber-400' :
+                                                'text-rose-400'
                                             }`}>
                                             %{record.basari_orani.toFixed(1)}
                                         </span>
