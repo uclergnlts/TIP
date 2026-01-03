@@ -33,9 +33,11 @@ export default function PersonnelDetailPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [downloadingPdf, setDownloadingPdf] = useState(false);
+    const [assignments, setAssignments] = useState<any[]>([]);
 
     useEffect(() => {
         fetchData();
+        fetchAssignments();
     }, [sicil]);
 
     const fetchData = async () => {
@@ -54,6 +56,17 @@ export default function PersonnelDetailPage() {
         }
     };
 
+    const fetchAssignments = async () => {
+        try {
+            const res = await fetch(`/api/admin/personnel-assignments?sicil=${sicil}`);
+            if (res.ok) {
+                setAssignments(await res.json());
+            }
+        } catch (error) {
+            console.error(error);
+        }
+    };
+
     const handleDownloadPdf = async () => {
         setDownloadingPdf(true);
         try {
@@ -62,7 +75,7 @@ export default function PersonnelDetailPage() {
 
             const blob = await res.blob();
             const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
+            const a = document.createElement(`a`);
             a.href = url;
             a.download = `TIP_Rapor_${sicil}.pdf`;
             a.click();
@@ -192,6 +205,53 @@ export default function PersonnelDetailPage() {
                             </div>
                         </div>
                     ))}
+                </div>
+            )}
+
+
+            {/* Assignments Section */}
+            {assignments.length > 0 && (
+                <div className="rounded-2xl border border-white/10 bg-slate-900/50 p-6 mb-8">
+                    <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                        <Target className="text-blue-500 h-5 w-5" />
+                        Atanan Sınavlar ve Eğitimler
+                    </h3>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                            <thead className="text-xs text-slate-500 uppercase bg-black/20 text-left">
+                                <tr>
+                                    <th className="px-4 py-3">Sınav Adı</th>
+                                    <th className="px-4 py-3">Tip</th>
+                                    <th className="px-4 py-3">Son Tarih</th>
+                                    <th className="px-4 py-3">Soru</th>
+                                    <th className="px-4 py-3">Durum</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-white/5">
+                                {assignments.map((assignment) => (
+                                    <tr key={assignment.id} className="hover:bg-white/5 transition-colors">
+                                        <td className="px-4 py-3 font-medium text-white">{assignment.title}</td>
+                                        <td className="px-4 py-3 text-slate-400">
+                                            {assignment.type === 'mandatory' ? 'Zorunlu' : 'Öneri'}
+                                        </td>
+                                        <td className="px-4 py-3 text-slate-400">
+                                            {new Date(assignment.due_date).toLocaleDateString('tr-TR')}
+                                        </td>
+                                        <td className="px-4 py-3 text-slate-400">{assignment.question_count}</td>
+                                        <td className="px-4 py-3">
+                                            <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${assignment.status === 'completed' ? 'bg-emerald-500/10 text-emerald-400' :
+                                                    assignment.status === 'expired' ? 'bg-rose-500/10 text-rose-400' :
+                                                        'bg-blue-500/10 text-blue-400'
+                                                }`}>
+                                                {assignment.status === 'completed' ? 'Tamamlandı' :
+                                                    assignment.status === 'expired' ? 'Süresi Doldu' : 'Bekliyor'}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             )}
 

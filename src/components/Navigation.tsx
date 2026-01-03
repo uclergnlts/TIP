@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BarChart3, Upload, Users, LogIn, LogOut, Shield, User, Menu, X } from 'lucide-react';
+import { BarChart3, Upload, Users, LogIn, LogOut, Shield, User, Menu, X, Target, ClipboardCheck } from 'lucide-react';
 import { useAuth } from './AuthProvider';
 import { useState } from 'react';
 
@@ -23,6 +23,11 @@ export function Navigation() {
 
     if (adminRole === 'manager') {
         navLinks.push({ href: '/upload', label: 'Veri Yükle', icon: Upload });
+        navLinks.push({ href: '/admin/questions', label: 'Görüntü Sorusu Ekle', icon: Target });
+    }
+
+    if (adminRole === 'manager' || adminRole === 'supervisor') {
+        navLinks.push({ href: '/admin/assignments', label: 'Sınav Ata', icon: ClipboardCheck });
     }
 
     return (

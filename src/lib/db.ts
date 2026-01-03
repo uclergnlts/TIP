@@ -66,7 +66,84 @@ export async function initDB() {
     )`,
     `CREATE INDEX IF NOT EXISTS idx_monthly_stats_ay ON monthly_stats(ay)`,
     `CREATE INDEX IF NOT EXISTS idx_personnel_grup ON personnel(grup)`,
-    `CREATE INDEX IF NOT EXISTS idx_group_summaries_ay ON group_summaries(ay)`
+    `CREATE INDEX IF NOT EXISTS idx_group_summaries_ay ON group_summaries(ay)`,
+
+    // Phase 2: Exam System Tables
+    // Phase 2: Exam System Tables (Updated Schema)
+    `CREATE TABLE IF NOT EXISTS tests (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      image_url TEXT NOT NULL,
+      has_threat BOOLEAN DEFAULT 0,
+      threat_type TEXT, -- 'knife', 'gun', etc. (NULL if clean)
+      coordinate_x REAL, -- Normalized 0-1
+      coordinate_y REAL, -- Normalized 0-1
+      threat_polygon TEXT, -- JSON string of normalized points [{x,y}, ...]
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS test_packages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      description TEXT,
+      difficulty_level TEXT, -- 'easy', 'medium', 'hard'
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS package_tests (
+      package_id INTEGER,
+      test_id INTEGER,
+      order_index INTEGER,
+      PRIMARY KEY (package_id, test_id),
+      FOREIGN KEY(package_id) REFERENCES test_packages(id),
+      FOREIGN KEY(test_id) REFERENCES tests(id)
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS assignments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_sicil INTEGER,
+      package_id INTEGER,
+      assigned_by TEXT,
+      type TEXT, -- 'mandatory', 'suggested'
+      status TEXT DEFAULT 'pending', -- 'pending', 'completed', 'expired'
+      due_date DATETIME,
+      completed_at DATETIME,
+      score REAL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(user_sicil) REFERENCES personnel(sicil),
+      FOREIGN KEY(package_id) REFERENCES test_packages(id)
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS attempts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      assignment_id INTEGER,
+      test_id INTEGER,
+      user_click_x REAL,
+      user_click_y REAL,
+      user_choice TEXT, -- 'clean' or threat type
+      is_correct BOOLEAN,
+      distance_score REAL,
+      duration_seconds INTEGER,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(assignment_id) REFERENCES assignments(id),
+      FOREIGN KEY(test_id) REFERENCES tests(id)
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS login_tokens (
+      code TEXT PRIMARY KEY,
+      user_sicil INTEGER,
+      expires_at DATETIME,
+      is_used BOOLEAN DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(user_sicil) REFERENCES personnel(sicil)
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS notifications (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_sicil INTEGER,
+      message TEXT,
+      is_read BOOLEAN DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`
   ];
 
   for (const query of tableCreationQueries) {
