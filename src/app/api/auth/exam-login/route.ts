@@ -43,9 +43,8 @@ export async function POST(request: NextRequest) {
 
         session.isLoggedIn = true;
         session.userType = 'personnel'; // Or 'exam_user'
-        session.username = sicil.toString();
         session.sicil = sicil;
-        session.ad_soyad = user ? user.ad_soyad : 'Personel';
+        session.adSoyad = user ? user.ad_soyad : 'Personel';
 
         await session.save();
 
