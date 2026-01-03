@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { User, LogOut, Target, TrendingUp, AlertTriangle, Award, Calendar } from 'lucide-react';
+import { ExamList } from '@/components/ExamList';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line } from 'recharts';
 import type { Personnel, MonthlyRecord, PersonnelKPI, Comment } from '@/types';
 
@@ -116,6 +117,7 @@ export default function MyPerformancePage() {
 
     return (
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
             {/* User Header */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
                 <div className="flex items-center gap-4">
@@ -135,6 +137,10 @@ export default function MyPerformancePage() {
                     Çıkış Yap
                 </button>
             </div>
+
+            {/* Exam List */}
+            <ExamList />
+
 
             {/* Main Stats */}
             {latestRecord && kpi && (

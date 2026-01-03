@@ -29,9 +29,9 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Soyadı kontrol et (büyük/küçük harf duyarsız)
-        const personnelSoyad = personnel.ad_soyad.split(' ').pop()?.toLowerCase() || '';
-        const inputSoyad = soyad.toLowerCase().trim();
+        // Soyadı kontrol et (büyük/küçük harf duyarsız, Türkçe karakter uyumlu)
+        const personnelSoyad = personnel.ad_soyad.split(' ').pop()?.toLocaleLowerCase('tr-TR') || '';
+        const inputSoyad = soyad.toLocaleLowerCase('tr-TR').trim();
 
         if (personnelSoyad !== inputSoyad) {
             return NextResponse.json(
